@@ -1,5 +1,11 @@
 import React, { createContext, useContext, useState } from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
 import MainLayout from "./components/MainLayout";
 import QuestionList from "./components/QuestionList";
 import QuestionDetail from "./components/QuestionDetail";
@@ -19,21 +25,47 @@ function ProtectedRoute({ children }) {
 }
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false); // mock auth state
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   return (
     <AuthContext.Provider value={{ isAuthenticated, setIsAuthenticated }}>
       <Router>
         <Routes>
-          <Route path="/" element={<MainLayout><QuestionList /></MainLayout>} />
-          <Route path="/question/:id" element={<MainLayout><QuestionDetail /></MainLayout>} />
-          <Route path="/ask" element={<MainLayout><AskQuestion /></MainLayout>} />
-          <Route path="/protected" element={
-            <ProtectedRoute>
+          <Route
+            path="/"
+            element={
               <MainLayout>
-                <div className="text-center text-2xl text-green-400 mt-20">This is a protected route!</div>
+                <QuestionList />
               </MainLayout>
-            </ProtectedRoute>
-          } />
+            }
+          />
+          <Route
+            path="/question/:id"
+            element={
+              <MainLayout>
+                <QuestionDetail />
+              </MainLayout>
+            }
+          />
+          <Route
+            path="/ask"
+            element={
+              <MainLayout>
+                <AskQuestion />
+              </MainLayout>
+            }
+          />
+          <Route
+            path="/protected"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <div className="text-center text-2xl text-green-400 mt-20">
+                    This is a protected route!
+                  </div>
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </Router>
     </AuthContext.Provider>
