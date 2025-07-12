@@ -7,6 +7,7 @@ const rateLimit = require('express-rate-limit');
 const dotenv = require('dotenv');
 const http = require('http');
 const socketIo = require('socket.io');
+const morgan = require('morgan');
 
 // Load environment variables
 dotenv.config({ path: './config.env' });
@@ -28,14 +29,15 @@ const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
     origin: process.env.FRONTEND_URL || "http://localhost:5173",
-    methods: ["GET", "POST"]
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"]
+
   }
 });
 
 // Security middleware
 app.use(helmet());
 app.use(compression());
-
+app.use(morgan('dev'));
 // Rate limiting
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
