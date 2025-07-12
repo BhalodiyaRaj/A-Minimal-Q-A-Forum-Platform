@@ -1,18 +1,21 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Bell, User, Search, Filter, LogOut } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Bell, User, Search, Filter, LogOut, Sparkles, HelpCircle, Tag, Users, Home } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
 import Login from "./Login";
 import Register from "./Register";
 import { useAuth } from "../App";
-import { logoutUser } from "../api/apiService";
+import { logoutUser, getNotifications } from "../api/apiService";
 
 const Navbar = () => {
   const [showSearch, setShowSearch] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [notificationCount, setNotificationCount] = useState(0);
   const searchRef = useRef(null);
   const navigate = useNavigate();
-  const { isAuthenticated, setIsAuthenticated } = useAuth();
+  const location = useLocation();
+  const { isAuthenticated, setIsAuthenticated, setUser, user } = useAuth();
 
   // Close search input if clicked outside
   useEffect(() => {
@@ -31,93 +34,191 @@ const Navbar = () => {
     };
   }, [showSearch]);
 
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      if (isAuthenticated) {
+        try {
+          const response = await getNotifications();
+          if (response.status === 'success') {
+            const unreadCount = response.data.notifications.filter(n => !n.isRead).length;
+            setNotificationCount(unreadCount);
+          }
+        } catch (error) {
+          console.error("Failed to fetch notifications:", error);
+        }
+      }
+    };
+
+    fetchNotifications();
+    
+    // Optional: Poll for new notifications periodically
+    const interval = setInterval(fetchNotifications, 60000); // every 60 seconds
+    return () => clearInterval(interval);
+  }, [isAuthenticated]);
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
+      setShowSearch(false);
+      setSearchQuery("");
+    }
+  };
+
+  const isActiveRoute = (path) => {
+    return location.pathname === path || location.pathname.startsWith(path + '/');
+  };
+
+  const getNavButtonClass = (isActive) => {
+    return `font-medium px-6 py-3 rounded-xl transition-all duration-300 focus:outline-none ${
+      isActive
+        ? 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 shadow-md'
+        : 'text-gray-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:text-blue-700 hover:shadow-md'
+    }`;
+  };
+
   return (
     <>
-      <nav className="w-full flex items-center justify-between px-10 py-4 bg-gradient-to-r from-[#1e293b]/80 via-[#312e81]/80 to-[#0ea5e9]/80 backdrop-blur-md shadow-xl border-b border-[#334155]/60 sticky top-0 z-50">
+      <nav className="w-full flex items-center justify-between px-8 py-6 bg-white/80 backdrop-blur-xl shadow-lg border-b border-white/20 sticky top-0 z-50">
         {/* Left: Logo */}
         <div className="flex items-center min-w-0">
-          <span className="font-extrabold text-2xl tracking-tight text-white select-none drop-shadow-lg">
-            StackIt
-          </span>
+          <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate("/")}>
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+              <Sparkles className="w-6 h-6 text-white" />
+            </div>
+            <span className="font-bold text-2xl tracking-tight bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
+              StackIt
+            </span>
+          </div>
         </div>
-        {/* Center: Home, Questions */}
+        
+        {/* Center: Navigation */}
         <div className="flex items-center gap-4">
           <button
-            className="text-gray-200 font-medium px-4 py-2 rounded-xl transition-all duration-200 hover:bg-white/10 hover:text-cyan-300 hover:scale-105 focus:outline-none"
+            className={getNavButtonClass(isActiveRoute("/"))}
             onClick={() => navigate("/")}
           >
+            <Home size={16} className="inline mr-2" />
             Home
           </button>
-          <button className="text-gray-200 font-medium px-4 py-2 rounded-xl transition-all duration-200 hover:bg-white/10 hover:text-cyan-300 hover:scale-105 focus:outline-none">
+          <button 
+            className={getNavButtonClass(isActiveRoute("/questions"))}
+            onClick={() => navigate("/questions")}
+          >
+            <HelpCircle size={16} className="inline mr-2" />
             Questions
           </button>
+          <button 
+            className={getNavButtonClass(isActiveRoute("/tags"))}
+            onClick={() => navigate("/tags")}
+          >
+            <Tag size={16} className="inline mr-2" />
+            Tags
+          </button>
+          <button 
+            className={getNavButtonClass(isActiveRoute("/users"))}
+            onClick={() => navigate("/users")}
+          >
+            <Users size={16} className="inline mr-2" />
+            Users
+          </button>
         </div>
-        {/* Right: Search Icon, Notification, Profile, Filter Icon, Login */}
+        
+        {/* Right: Actions */}
         <div className="flex items-center gap-4 min-w-0">
           {/* Search Icon and Popover */}
           <div className="relative" ref={searchRef}>
             <button
-              className={`p-2 rounded-full bg-white/10 border border-transparent hover:bg-cyan-600/20 hover:border-cyan-400 transition-all duration-200 text-cyan-200 hover:text-white shadow focus:outline-none hover:scale-110`}
+              className={`p-3 rounded-xl bg-gradient-to-r from-gray-50 to-gray-100 border border-gray-200 hover:from-blue-50 hover:to-indigo-50 hover:border-blue-200 transition-all duration-300 text-gray-600 hover:text-blue-700 shadow-sm hover:shadow-md`}
               onClick={() => setShowSearch((v) => !v)}
               aria-label="Search"
             >
-              <Search size={22} />
+              <Search size={20} />
             </button>
             {showSearch && (
-              <div className="absolute right-0 mt-2 w-56 bg-[#23232a] border border-[#334155] rounded-xl shadow-lg p-2 z-50 animate-fade-in">
-                <input
-                  autoFocus
-                  type="text"
-                  placeholder="Search..."
-                  className="w-full px-4 py-2 rounded-lg bg-[#18181b] text-white border border-transparent focus:outline-none focus:ring-2 focus:ring-cyan-400 placeholder:text-cyan-100/60 shadow-inner transition-all duration-200"
-                />
+              <div className="absolute right-0 mt-3 w-80 bg-white/90 backdrop-blur-xl border border-gray-200 rounded-2xl shadow-2xl p-4 z-50 animate-fade-in">
+                <form onSubmit={handleSearch}>
+                  <input
+                    autoFocus
+                    type="text"
+                    placeholder="Search questions, tags, or users..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl bg-gray-50 text-gray-900 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-500 transition-all duration-200"
+                  />
+                </form>
               </div>
             )}
           </div>
-          <button className="relative p-2 rounded-full bg-white/10 hover:bg-cyan-600/20 transition-all duration-200 text-cyan-200 hover:text-white shadow focus:outline-none hover:scale-110">
-            <Bell size={22} />
-            {/* Notification badge */}
-            <span className="absolute -top-1 -right-1 bg-pink-500 text-white text-xs rounded-full px-1.5 border-2 border-[#1e293b] shadow">
-              3
-            </span>
-          </button>
-          <button className="p-2 rounded-full bg-white/10 border border-transparent hover:bg-indigo-600/20 hover:border-indigo-400 transition-all duration-200 text-cyan-200 hover:text-white shadow focus:outline-none hover:scale-110">
-            <User size={22} />
-          </button>
-          <button className="p-2 rounded-full bg-white/10 border border-transparent hover:bg-cyan-600/20 hover:border-cyan-400 transition-all duration-200 text-cyan-200 hover:text-white shadow focus:outline-none hover:scale-110">
-            <Filter size={22} />
-          </button>
-          {isAuthenticated ? (
-            <button
-              onClick={async () => {
-                try {
-                  await logoutUser();
-                } catch {
-                  // Optionally handle error
-                }
-                localStorage.removeItem("accessToken");
-                setIsAuthenticated(false);
-              }}
-              className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-5 py-2 rounded-xl shadow-lg font-semibold transition-all duration-200 hover:from-red-400 hover:to-pink-600 hover:scale-105 focus:outline-none flex items-center gap-2"
+          
+          {isAuthenticated && (
+            <button 
+              onClick={() => navigate("/notifications")}
+              className="relative p-3 rounded-xl bg-gradient-to-r from-gray-50 to-gray-100 hover:from-blue-50 hover:to-indigo-50 transition-all duration-300 text-gray-600 hover:text-blue-700 shadow-sm hover:shadow-md border border-gray-200 hover:border-blue-200"
             >
-              <LogOut size={18} />
-              Logout
+              <Bell size={20} />
+              {/* Notification badge */}
+              {notificationCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full px-2 py-1 border-2 border-white shadow-lg">
+                  {notificationCount}
+                </span>
+              )}
             </button>
+          )}
+          
+          {isAuthenticated ? (
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => navigate("/profile")}
+                className="flex items-center gap-3 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 hover:from-blue-100 hover:to-indigo-100 transition-all duration-300 cursor-pointer"
+              >
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-lg overflow-hidden">
+                  {user?.avatar ? (
+                    <img 
+                      src={user.avatar} 
+                      alt={user.username}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    user?.username?.[0] || "U"
+                  )}
+                </div>
+                <span className="text-gray-700 text-sm font-medium">
+                  {user?.username || "User"}
+                </span>
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    await logoutUser();
+                  } catch {
+                    // Optionally handle error
+                  }
+                  localStorage.removeItem("accessToken");
+                  setIsAuthenticated(false);
+                  setUser(null);
+                }}
+                className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-6 py-3 rounded-xl shadow-lg font-medium transition-all duration-300 hover:from-red-600 hover:to-pink-600 hover:shadow-xl focus:outline-none flex items-center gap-2"
+              >
+                <LogOut size={16} />
+                Logout
+              </button>
+            </div>
           ) : (
-            <>
+            <div className="flex items-center gap-3">
               <button
                 onClick={() => setShowLogin(true)}
-                className="bg-gradient-to-r from-cyan-500 to-indigo-500 text-white px-5 py-2 rounded-xl shadow-lg font-semibold transition-all duration-200 hover:from-cyan-400 hover:to-indigo-600 hover:scale-105 focus:outline-none"
+                className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-xl shadow-lg font-medium transition-all duration-300 hover:from-blue-700 hover:to-indigo-700 hover:shadow-xl focus:outline-none"
               >
                 Login
               </button>
               <button
                 onClick={() => setShowRegister(true)}
-                className="bg-gradient-to-r from-green-500 to-blue-500 text-white px-5 py-2 rounded-xl shadow-lg font-semibold transition-all duration-200 hover:from-green-400 hover:to-blue-600 hover:scale-105 focus:outline-none ml-2"
+                className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-3 rounded-xl shadow-lg font-medium transition-all duration-300 hover:from-green-600 hover:to-emerald-600 hover:shadow-xl focus:outline-none"
               >
                 Register
               </button>
-            </>
+            </div>
           )}
         </div>
       </nav>
@@ -126,7 +227,6 @@ const Navbar = () => {
         isOpen={showLogin}
         onClose={() => setShowLogin(false)}
         onSuccess={() => {
-          setIsAuthenticated(true);
           setShowLogin(false);
         }}
       />
@@ -134,7 +234,6 @@ const Navbar = () => {
         isOpen={showRegister}
         onClose={() => setShowRegister(false)}
         onSuccess={() => {
-          setIsAuthenticated(true);
           setShowRegister(false);
         }}
       />

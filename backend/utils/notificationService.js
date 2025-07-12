@@ -202,27 +202,6 @@ class NotificationService {
     }
   }
 
-  // Notify reputation change
-  async notifyReputationChange(userId, points, reason) {
-    try {
-      const User = require('../models/User');
-      const user = await User.findById(userId);
-      
-      if (!user) return;
-
-      await this.createNotification({
-        recipient: userId,
-        sender: userId, // Self notification
-        type: 'reputation_change',
-        title: 'Reputation changed',
-        message: `Your reputation ${points > 0 ? 'increased' : 'decreased'} by ${Math.abs(points)} points. ${reason}`,
-        metadata: { points, reason }
-      });
-    } catch (error) {
-      console.error('Error notifying reputation change:', error);
-    }
-  }
-
   // Mark notification as read
   async markAsRead(notificationId, userId) {
     try {

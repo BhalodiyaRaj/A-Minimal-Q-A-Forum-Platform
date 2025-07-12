@@ -13,6 +13,28 @@ router.use((req, res, next) => {
   next();
 });
 
+// @route   GET /api/answers/count
+// @desc    Get total answers count
+// @access  Public
+router.get('/count', async (req, res) => {
+  try {
+    const count = await Answer.countDocuments();
+    
+    res.json({
+      status: 'success',
+      data: {
+        count
+      }
+    });
+  } catch (error) {
+    console.error('Get answers count error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to get answers count'
+    });
+  }
+});
+
 // @route   GET /api/answers/question/:questionId
 // @desc    Get all answers for a specific question
 // @access  Public
@@ -29,11 +51,34 @@ router.get('/question/:questionId', optionalAuth, validateObjectId, async (req, 
       });
     }
 
-    const answers = await Answer.findByQuestion(questionId);
+    // Get all answers for this question first
+    const allAnswers = await Answer.findByQuestion(questionId);
+    
+    // Apply approval filtering
+    let answers;
+    if (req.user) {
+      // For authenticated users, show:
+      // 1. All approved answers
+      // 2. Their own unapproved answers
+      // 3. All answers if they are the question owner
+      if (question.author.toString() === req.user._id.toString()) {
+        // Question owner sees all answers
+        answers = allAnswers;
+      } else {
+        // Other users see approved answers + their own unapproved answers
+        answers = allAnswers.filter(answer => 
+          answer.isApproved || answer.author.toString() === req.user._id.toString()
+        );
+      }
+    } else {
+      // Non-authenticated users see only approved answers
+      answers = allAnswers.filter(answer => answer.isApproved);
+    }
 
     // Add user vote status if authenticated
     if (req.user) {
       answers.forEach(answer => {
+        answer.voteCount = answer.votesCount;
         answer.userVote = answer.votes.upvotes.includes(req.user._id) ? 'upvote' :
                          answer.votes.downvotes.includes(req.user._id) ? 'downvote' : null;
       });
@@ -83,6 +128,8 @@ router.get('/:id', optionalAuth, validateObjectId, async (req, res) => {
                        answer.votes.downvotes.includes(req.user._id) ? 'downvote' : null;
     }
 
+    answer.voteCount = answer.votesCount;
+
     res.json({
       status: 'success',
       data: {
@@ -125,10 +172,14 @@ router.post('/', authenticateToken, requireUser, validateAnswer, async (req, res
     const answer = new Answer({
       content,
       question: questionId,
-      author: req.user._id
+      author: req.user._id,
+      isApproved: false
     });
 
     await answer.save();
+
+    // Increment question's answerCount
+    await Question.findByIdAndUpdate(questionId, { $inc: { answerCount: 1 } });
 
     // Populate author info
     await answer.populate('author', 'username avatar reputation');
@@ -229,6 +280,9 @@ router.delete('/:id', authenticateToken, validateObjectId, async (req, res) => {
         message: 'Cannot delete an accepted answer'
       });
     }
+
+    // Decrement question's answerCount
+    await Question.findByIdAndUpdate(answer.question, { $inc: { answerCount: -1 } });
 
     await Answer.findByIdAndDelete(req.params.id);
 
@@ -381,6 +435,29 @@ router.post('/:id/unaccept', authenticateToken, validateObjectId, async (req, re
   }
 });
 
+// Add approve answer route
+// @route   POST /api/answers/:id/approve
+// @desc    Approve an answer (question owner only)
+// @access  Private
+router.post('/:id/approve', authenticateToken, async (req, res) => {
+  try {
+    const answer = await Answer.findById(req.params.id).populate('question');
+    if (!answer) {
+      return res.status(404).json({ status: 'error', message: 'Answer not found' });
+    }
+    const question = answer.question;
+    if (question.author.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ status: 'error', message: 'Only the question owner can approve answers' });
+    }
+    answer.isApproved = true;
+    await answer.save();
+    
+    res.json({ status: 'success', message: 'Answer approved', data: { answer } });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: 'Failed to approve answer' });
+  }
+});
+
 // @route   GET /api/answers/user/:userId
 // @desc    Get all answers by a specific user
 // @access  Public
@@ -391,19 +468,28 @@ router.get('/user/:userId', optionalAuth, validateObjectId, async (req, res) => 
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const answers = await Answer.find({ author: userId })
+    // Apply approval filtering
+    let filter = { author: userId };
+    if (!req.user || req.user._id.toString() !== userId.toString()) {
+      // Show only approved answers to public
+      filter.isApproved = true;
+    }
+    // If user is viewing their own answers, show all (approved and unapproved)
+
+    const answers = await Answer.find(filter)
       .populate('author', 'username avatar reputation')
       .populate('question', 'title')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
-    const total = await Answer.countDocuments({ author: userId });
+    const total = await Answer.countDocuments(filter);
     const totalPages = Math.ceil(total / limit);
 
     // Add user vote status if authenticated
     if (req.user) {
       answers.forEach(answer => {
+        answer.voteCount = answer.votesCount;
         answer.userVote = answer.votes.upvotes.includes(req.user._id) ? 'upvote' :
                          answer.votes.downvotes.includes(req.user._id) ? 'downvote' : null;
       });

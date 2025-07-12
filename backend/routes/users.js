@@ -16,7 +16,7 @@ router.get('/', optionalAuth, validatePagination, async (req, res) => {
     const skip = (page - 1) * limit;
 
     const filter = {};
-    const sort = { reputation: -1 };
+    const sort = { createdAt: -1 }; // Default sort by creation date
 
     // Search functionality
     if (req.query.q) {
@@ -29,11 +29,6 @@ router.get('/', optionalAuth, validatePagination, async (req, res) => {
     // Filter by role
     if (req.query.role) {
       filter.role = req.query.role;
-    }
-
-    // Filter by reputation
-    if (req.query.minReputation) {
-      filter.reputation = { $gte: parseInt(req.query.minReputation) };
     }
 
     // Sort options
@@ -51,7 +46,7 @@ router.get('/', optionalAuth, validatePagination, async (req, res) => {
         sort.lastSeen = -1;
         break;
       default:
-        sort.reputation = -1;
+        sort.createdAt = -1; // Default to newest
     }
 
     const users = await User.find(filter)
@@ -82,6 +77,42 @@ router.get('/', optionalAuth, validatePagination, async (req, res) => {
     res.status(500).json({
       status: 'error',
       message: 'Failed to get users'
+    });
+  }
+});
+
+// @route   GET /api/users/leaderboard
+// @desc    Get user leaderboard by reputation
+// @access  Public
+router.get('/leaderboard', optionalAuth, async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+    const period = req.query.period || 'all'; // all, week, month
+
+    let dateFilter = {};
+    if (period === 'week') {
+      dateFilter = { createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } };
+    } else if (period === 'month') {
+      dateFilter = { createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } };
+    }
+
+    const users = await User.find(dateFilter)
+      .select('username avatar badges createdAt')
+      .sort({ createdAt: -1 })
+      .limit(limit);
+
+    res.json({
+      status: 'success',
+      data: {
+        users,
+        period
+      }
+    });
+  } catch (error) {
+    console.error('Get leaderboard error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to get leaderboard'
     });
   }
 });
@@ -138,7 +169,7 @@ router.get('/:id/questions', optionalAuth, validateObjectId, validatePagination,
     }
 
     const questions = await Question.find({ author: id })
-      .populate('author', 'username avatar reputation')
+      .populate('author', 'username avatar')
       .populate('acceptedAnswer', 'content')
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -162,8 +193,7 @@ router.get('/:id/questions', optionalAuth, validateObjectId, validatePagination,
         user: {
           id: user._id,
           username: user.username,
-          avatar: user.avatar,
-          reputation: user.reputation
+          avatar: user.avatar
         },
         pagination: {
           page,
@@ -203,14 +233,22 @@ router.get('/:id/answers', optionalAuth, validateObjectId, validatePagination, a
       });
     }
 
-    const answers = await Answer.find({ author: id })
-      .populate('author', 'username avatar reputation')
-      .populate('question', 'title')
+    // Apply approval filtering
+    let filter = { author: id };
+    if (!req.user || req.user._id.toString() !== id.toString()) {
+      // Show only approved answers to public
+      filter.isApproved = true;
+    }
+    // If user is viewing their own answers, show all (approved and unapproved)
+
+    const answers = await Answer.find(filter)
+      .populate('author', 'username avatar')
+      // .populate('question', 'title')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
-    const total = await Answer.countDocuments({ author: id });
+    const total = await Answer.countDocuments(filter);
     const totalPages = Math.ceil(total / limit);
 
     // Add user vote status if authenticated
@@ -228,8 +266,7 @@ router.get('/:id/answers', optionalAuth, validateObjectId, validatePagination, a
         user: {
           id: user._id,
           username: user.username,
-          avatar: user.avatar,
-          reputation: user.reputation
+          avatar: user.avatar
         },
         pagination: {
           page,
@@ -274,9 +311,17 @@ router.get('/:id/activity', optionalAuth, validateObjectId, validatePagination, 
       .select('title createdAt voteCount views')
       .sort({ createdAt: -1 });
 
-    const answers = await Answer.find({ author: id })
+    // Apply approval filtering for answers
+    let answerFilter = { author: id };
+    if (!req.user || req.user._id.toString() !== id.toString()) {
+      // Show only approved answers to public
+      answerFilter.isApproved = true;
+    }
+    // If user is viewing their own activity, show all (approved and unapproved)
+
+    const answers = await Answer.find(answerFilter)
       .populate('question', 'title')
-      .select('content createdAt voteCount isAccepted question')
+      .select('content createdAt voteCount isAccepted question isApproved')
       .sort({ createdAt: -1 });
 
     // Combine and sort by date
@@ -297,8 +342,7 @@ router.get('/:id/activity', optionalAuth, validateObjectId, validatePagination, 
         user: {
           id: user._id,
           username: user.username,
-          avatar: user.avatar,
-          reputation: user.reputation
+          avatar: user.avatar
         },
         pagination: {
           page,
@@ -449,42 +493,6 @@ router.delete('/:id', authenticateToken, requireAdmin, validateObjectId, async (
     res.status(500).json({
       status: 'error',
       message: 'Failed to delete user'
-    });
-  }
-});
-
-// @route   GET /api/users/leaderboard
-// @desc    Get user leaderboard by reputation
-// @access  Public
-router.get('/leaderboard', optionalAuth, async (req, res) => {
-  try {
-    const limit = parseInt(req.query.limit) || 10;
-    const period = req.query.period || 'all'; // all, week, month
-
-    let dateFilter = {};
-    if (period === 'week') {
-      dateFilter = { createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } };
-    } else if (period === 'month') {
-      dateFilter = { createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } };
-    }
-
-    const users = await User.find(dateFilter)
-      .select('username avatar reputation badges createdAt')
-      .sort({ reputation: -1 })
-      .limit(limit);
-
-    res.json({
-      status: 'success',
-      data: {
-        users,
-        period
-      }
-    });
-  } catch (error) {
-    console.error('Get leaderboard error:', error);
-    res.status(500).json({
-      status: 'error',
-      message: 'Failed to get leaderboard'
     });
   }
 });

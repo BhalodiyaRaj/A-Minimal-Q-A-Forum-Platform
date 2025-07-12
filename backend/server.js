@@ -19,6 +19,7 @@ const answerRoutes = require('./routes/answers');
 const userRoutes = require('./routes/users');
 const notificationRoutes = require('./routes/notifications');
 const tagRoutes = require('./routes/tags');
+const searchRoutes = require('./routes/search');
 
 // Import middleware
 const { errorHandler } = require('./middleware/errorHandler');
@@ -39,12 +40,12 @@ app.use(helmet());
 app.use(compression());
 app.use(morgan('dev'));
 // Rate limiting
-const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.'
-});
-app.use('/api/', limiter);
+// const limiter = rateLimit({
+//   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
+//   max: 10000, // allow 10,000 requests per windowMs for dev
+//   message: 'Too many requests from this IP, please try again later.'
+// });
+// app.use('/api/', limiter);
 
 // CORS configuration
 app.use(cors({
@@ -75,6 +76,7 @@ app.use('/api/answers', answerRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/tags', tagRoutes);
+app.use('/api/search', searchRoutes);
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
