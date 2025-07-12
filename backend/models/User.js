@@ -26,8 +26,14 @@ const userSchema = new mongoose.Schema({
     select: false
   },
   avatar: {
-    type: String,
-    default: ''
+    url: {
+      type: String,
+      default: ''
+    },
+    public_id: {
+      type: String,
+      default: ''
+    }
   },
   bio: {
     type: String,
