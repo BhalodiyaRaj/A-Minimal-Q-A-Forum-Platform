@@ -75,9 +75,11 @@ router.get('/', optionalAuth, validatePagination, async (req, res) => {
     const questions = await Question.find(filter)
       .populate('author', 'username avatar reputation')
       .populate('acceptedAnswer', 'content')
+      .populate('answersCount')
       .sort(sort)
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean({ virtuals: true });
 
     const total = await Question.countDocuments(filter);
     const totalPages = Math.ceil(total / limit);
@@ -85,8 +87,15 @@ router.get('/', optionalAuth, validatePagination, async (req, res) => {
     // Add user vote status if authenticated
     if (req.user) {
       questions.forEach(question => {
+        question.answerCount = question.answersCount;
+        question.voteCount = question.votesCount;
         question.userVote = question.votes.upvotes.includes(req.user._id) ? 'upvote' :
                            question.votes.downvotes.includes(req.user._id) ? 'downvote' : null;
+      });
+    } else {
+      questions.forEach(question => {
+        question.answerCount = question.answersCount;
+        question.voteCount = question.votesCount;
       });
     }
 
@@ -124,8 +133,10 @@ router.get('/unanswered', optionalAuth, validatePagination, async (req, res) => 
 
     const questions = await Question.findUnanswered()
       .populate('acceptedAnswer', 'content')
+      .populate('answersCount')
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean({ virtuals: true });
 
     const total = await Question.countDocuments({ isAnswered: false });
     const totalPages = Math.ceil(total / limit);
@@ -133,8 +144,15 @@ router.get('/unanswered', optionalAuth, validatePagination, async (req, res) => 
     // Add user vote status if authenticated
     if (req.user) {
       questions.forEach(question => {
+        question.answerCount = question.answersCount;
+        question.voteCount = question.votesCount;
         question.userVote = question.votes.upvotes.includes(req.user._id) ? 'upvote' :
                            question.votes.downvotes.includes(req.user._id) ? 'downvote' : null;
+      });
+    } else {
+      questions.forEach(question => {
+        question.answerCount = question.answersCount;
+        question.voteCount = question.votesCount;
       });
     }
 
@@ -172,8 +190,10 @@ router.get('/featured', optionalAuth, validatePagination, async (req, res) => {
 
     const questions = await Question.findFeatured()
       .populate('acceptedAnswer', 'content')
+      .populate('answersCount')
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean({ virtuals: true });
 
     const total = await Question.countDocuments({ featured: true });
     const totalPages = Math.ceil(total / limit);
@@ -181,8 +201,15 @@ router.get('/featured', optionalAuth, validatePagination, async (req, res) => {
     // Add user vote status if authenticated
     if (req.user) {
       questions.forEach(question => {
+        question.answerCount = question.answersCount;
+        question.voteCount = question.votesCount;
         question.userVote = question.votes.upvotes.includes(req.user._id) ? 'upvote' :
                            question.votes.downvotes.includes(req.user._id) ? 'downvote' : null;
+      });
+    } else {
+      questions.forEach(question => {
+        question.answerCount = question.answersCount;
+        question.voteCount = question.votesCount;
       });
     }
 
@@ -214,6 +241,8 @@ router.get('/featured', optionalAuth, validatePagination, async (req, res) => {
 // @access  Public
 router.get('/:id', optionalAuth, validateObjectId, async (req, res) => {
   try {
+    const Answer = require('../models/Answer');
+    
     const question = await Question.findById(req.params.id)
       .populate('author', 'username avatar reputation bio')
       .populate('acceptedAnswer', 'content author')
@@ -229,16 +258,56 @@ router.get('/:id', optionalAuth, validateObjectId, async (req, res) => {
     // Increment views
     await question.incrementViews();
 
+    // Get all answers for this question first
+    const allAnswers = await Answer.findByQuestion(req.params.id);
+    console.log(`Found ${allAnswers.length} total answers for question ${req.params.id}`);
+    
+    // Apply approval filtering
+    let answers;
+    if (req.user) {
+      console.log(`User ${req.user._id} is authenticated`);
+      console.log(`Question author: ${question.author.toString()}`);
+      // For authenticated users, show:
+      // 1. All approved answers
+      // 2. Their own unapproved answers
+      // 3. All answers if they are the question owner
+      if (question.author._id.toString() === req.user._id.toString()) {
+        // Question owner sees all answers
+        console.log("User is question owner, showing all answers");
+        answers = allAnswers;
+      } else {
+        // Other users see approved answers + their own unapproved answers
+        console.log("User is not question owner, filtering answers");
+        answers = allAnswers.filter(answer => 
+          answer.isApproved || answer.author._id.toString() === req.user._id.toString()
+        );
+        console.log(`After filtering: ${answers.length} answers`);
+      }
+    } else {
+      // Non-authenticated users see only approved answers
+      console.log("User is not authenticated, showing only approved answers");
+      answers = allAnswers.filter(answer => answer.isApproved);
+      console.log(`After filtering: ${answers.length} approved answers`);
+    }
+
     // Add user vote status if authenticated
     if (req.user) {
       question.userVote = question.votes.upvotes.includes(req.user._id) ? 'upvote' :
                          question.votes.downvotes.includes(req.user._id) ? 'downvote' : null;
+      
+      // Add user vote status for answers
+      answers.forEach(answer => {
+        answer.voteCount = answer.votesCount;
+        answer.userVote = answer.votes.upvotes.includes(req.user._id) ? 'upvote' :
+                         answer.votes.downvotes.includes(req.user._id) ? 'downvote' : null;
+      });
     }
 
     res.json({
       status: 'success',
       data: {
-        question
+        question,
+        answers
       }
     });
   } catch (error) {

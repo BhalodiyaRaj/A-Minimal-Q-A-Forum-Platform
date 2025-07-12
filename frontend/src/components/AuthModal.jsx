@@ -5,10 +5,10 @@ const AuthModal = ({ isOpen, onClose, onLogin, onRegister }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
-    email: "heet@gmail.com",
-    password: "123456",
-    username: "heet",
-    confirmPassword: "123456",
+    email: "",
+    password: "",
+    username: "",
+    confirmPassword: "",
   });
 
   const handleSubmit = (e) => {

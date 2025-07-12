@@ -34,6 +34,10 @@ const answerSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  isApproved: {
+    type: Boolean,
+    default: false
+  },
   isEdited: {
     type: Boolean,
     default: false
@@ -56,6 +60,11 @@ const answerSchema = new mongoose.Schema({
   timestamps: true,
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
+});
+
+// Virtual for votes count
+answerSchema.virtual('votesCount').get(function() {
+  return (this.votes.upvotes.length - this.votes.downvotes.length) || 0;
 });
 
 // Virtual for comments count

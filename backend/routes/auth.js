@@ -42,7 +42,6 @@ router.post('/register', validateRegister, async (req, res) => {
       avatar: user.avatar.url || user.avatar, // Handle both new and old format
       bio: user.bio,
       role: user.role,
-      reputation: user.reputation,
       badges: user.badges,
       createdAt: user.createdAt
     };
@@ -104,7 +103,6 @@ router.post('/login', validateLogin, async (req, res) => {
       avatar: user.avatar.url || user.avatar, // Handle both new and old format
       bio: user.bio,
       role: user.role,
-      reputation: user.reputation,
       badges: user.badges,
       lastSeen: user.lastSeen,
       createdAt: user.createdAt
@@ -143,7 +141,6 @@ router.get('/me', authenticateToken, async (req, res) => {
       avatar: user.avatar.url || user.avatar, // Handle both new and old format
       bio: user.bio,
       role: user.role,
-      reputation: user.reputation,
       badges: user.badges,
       isVerified: user.isVerified,
       lastSeen: user.lastSeen,
@@ -206,7 +203,6 @@ router.put('/profile', authenticateToken, uploadAvatar, handleUploadError, valid
       avatar: user.avatar.url || user.avatar, // Handle both new and old format
       bio: user.bio,
       role: user.role,
-      reputation: user.reputation,
       badges: user.badges,
       createdAt: user.createdAt
     };
@@ -264,7 +260,6 @@ router.post('/avatar', authenticateToken, uploadAvatar, handleUploadError, async
       avatar: user.avatar.url || user.avatar, // Handle both new and old format
       bio: user.bio,
       role: user.role,
-      reputation: user.reputation,
       badges: user.badges,
       createdAt: user.createdAt
     };
@@ -316,7 +311,6 @@ router.delete('/avatar', authenticateToken, async (req, res) => {
       avatar: user.avatar.url || user.avatar, // Handle both new and old format
       bio: user.bio,
       role: user.role,
-      reputation: user.reputation,
       badges: user.badges,
       createdAt: user.createdAt
     };

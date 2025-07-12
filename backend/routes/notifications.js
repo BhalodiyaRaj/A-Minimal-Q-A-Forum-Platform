@@ -21,17 +21,20 @@ router.get('/', authenticateToken, async (req, res) => {
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
 
-    const notifications = await Notification.findByUser(req.user._id, limit + skip);
+    const notifications = await Notification.find({ recipient: req.user._id })
+      // .populate('sender', 'username avatar')
+      // .populate('question', 'title')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+      
     const total = await Notification.countDocuments({ recipient: req.user._id });
     const totalPages = Math.ceil(total / limit);
-
-    // Apply pagination
-    const paginatedNotifications = notifications.slice(skip, skip + limit);
 
     res.json({
       status: 'success',
       data: {
-        notifications: paginatedNotifications,
+        notifications,
         pagination: {
           page,
           limit,

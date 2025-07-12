@@ -18,6 +18,10 @@ const questionSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  answerCount: {
+    type: Number,
+    default: 0
+  },
   tags: [{
     type: String,
     required: true,
@@ -95,6 +99,11 @@ questionSchema.virtual('answersCount', {
   localField: '_id',
   foreignField: 'question',
   count: true
+});
+
+// Virtual for votes count
+questionSchema.virtual('votesCount').get(function() {
+  return (this.votes.upvotes.length - this.votes.downvotes.length) || 0;
 });
 
 // Virtual for comments count

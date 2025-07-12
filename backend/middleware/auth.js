@@ -146,14 +146,6 @@ const canVote = async (req, res, next) => {
       });
     }
 
-    // Users need some reputation to vote (optional feature)
-    if (req.user.reputation < 15 && req.user.role !== 'admin') {
-      return res.status(403).json({
-        status: 'error',
-        message: 'You need at least 15 reputation points to vote'
-      });
-    }
-
     next();
   } catch (error) {
     return res.status(500).json({

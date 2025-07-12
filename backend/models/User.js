@@ -45,10 +45,6 @@ const userSchema = new mongoose.Schema({
     enum: ['guest', 'user', 'admin'],
     default: 'user'
   },
-  reputation: {
-    type: Number,
-    default: 0
-  },
   badges: [{
     type: String,
     enum: ['newbie', 'regular', 'expert', 'moderator', 'admin']
@@ -96,7 +92,6 @@ userSchema.virtual('answersCount', {
 // Index for better query performance
 userSchema.index({ username: 1 });
 userSchema.index({ email: 1 });
-userSchema.index({ reputation: -1 });
 
 // Pre-save middleware to hash password
 userSchema.pre('save', async function(next) {
@@ -133,12 +128,6 @@ userSchema.methods.generateAuthToken = function() {
 // Method to update last seen
 userSchema.methods.updateLastSeen = function() {
   this.lastSeen = new Date();
-  return this.save();
-};
-
-// Method to update reputation
-userSchema.methods.updateReputation = function(points) {
-  this.reputation += points;
   return this.save();
 };
 
