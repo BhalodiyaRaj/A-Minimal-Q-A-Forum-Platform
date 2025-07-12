@@ -97,10 +97,6 @@ const validateProfileUpdate = [
     .trim()
     .isLength({ max: 500 })
     .withMessage('Bio cannot exceed 500 characters'),
-  body('avatar')
-    .optional()
-    .isURL()
-    .withMessage('Avatar must be a valid URL'),
   handleValidationErrors
 ];
 

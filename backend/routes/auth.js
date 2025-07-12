@@ -3,6 +3,8 @@ const router = express.Router();
 const User = require('../models/User');
 const { authenticateToken, requireUser } = require('../middleware/auth');
 const { validateRegister, validateLogin, validateProfileUpdate } = require('../middleware/validation');
+const { uploadAvatar, handleUploadError } = require('../middleware/upload');
+const { deleteImage } = require('../utils/cloudinary');
 
 // @route   POST /api/auth/register
 // @desc    Register a new user
@@ -37,7 +39,7 @@ router.post('/register', validateRegister, async (req, res) => {
       id: user._id,
       username: user.username,
       email: user.email,
-      avatar: user.avatar,
+      avatar: user.avatar.url || user.avatar, // Handle both new and old format
       bio: user.bio,
       role: user.role,
       reputation: user.reputation,
@@ -99,7 +101,7 @@ router.post('/login', validateLogin, async (req, res) => {
       id: user._id,
       username: user.username,
       email: user.email,
-      avatar: user.avatar,
+      avatar: user.avatar.url || user.avatar, // Handle both new and old format
       bio: user.bio,
       role: user.role,
       reputation: user.reputation,
@@ -138,7 +140,7 @@ router.get('/me', authenticateToken, async (req, res) => {
       id: user._id,
       username: user.username,
       email: user.email,
-      avatar: user.avatar,
+      avatar: user.avatar.url || user.avatar, // Handle both new and old format
       bio: user.bio,
       role: user.role,
       reputation: user.reputation,
@@ -169,13 +171,27 @@ router.get('/me', authenticateToken, async (req, res) => {
 // @route   PUT /api/auth/profile
 // @desc    Update user profile
 // @access  Private
-router.put('/profile', authenticateToken, validateProfileUpdate, async (req, res) => {
+router.put('/profile', authenticateToken, uploadAvatar, handleUploadError, validateProfileUpdate, async (req, res) => {
   try {
-    const { bio, avatar } = req.body;
+    const { bio } = req.body;
     const updateData = {};
 
     if (bio !== undefined) updateData.bio = bio;
-    if (avatar !== undefined) updateData.avatar = avatar;
+
+    // Handle avatar upload
+    if (req.file) {
+      // Delete old avatar from Cloudinary if exists
+      const currentUser = await User.findById(req.user._id);
+      if (currentUser.avatar && currentUser.avatar.public_id) {
+        await deleteImage(currentUser.avatar.public_id);
+      }
+
+      // Update avatar with new Cloudinary data
+      updateData.avatar = {
+        url: req.file.path,
+        public_id: req.file.filename
+      };
+    }
 
     const user = await User.findByIdAndUpdate(
       req.user._id,
@@ -187,7 +203,7 @@ router.put('/profile', authenticateToken, validateProfileUpdate, async (req, res
       id: user._id,
       username: user.username,
       email: user.email,
-      avatar: user.avatar,
+      avatar: user.avatar.url || user.avatar, // Handle both new and old format
       bio: user.bio,
       role: user.role,
       reputation: user.reputation,
@@ -207,6 +223,116 @@ router.put('/profile', authenticateToken, validateProfileUpdate, async (req, res
     res.status(500).json({
       status: 'error',
       message: 'Failed to update profile'
+    });
+  }
+});
+
+// @route   POST /api/auth/avatar
+// @desc    Upload user avatar
+// @access  Private
+router.post('/avatar', authenticateToken, uploadAvatar, handleUploadError, async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'No avatar file provided'
+      });
+    }
+
+    // Delete old avatar from Cloudinary if exists
+    const currentUser = await User.findById(req.user._id);
+    if (currentUser.avatar && currentUser.avatar.public_id) {
+      await deleteImage(currentUser.avatar.public_id);
+    }
+
+    // Update avatar with new Cloudinary data
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      {
+        avatar: {
+          url: req.file.path,
+          public_id: req.file.filename
+        }
+      },
+      { new: true, runValidators: true }
+    );
+
+    const userResponse = {
+      id: user._id,
+      username: user.username,
+      email: user.email,
+      avatar: user.avatar.url || user.avatar, // Handle both new and old format
+      bio: user.bio,
+      role: user.role,
+      reputation: user.reputation,
+      badges: user.badges,
+      createdAt: user.createdAt
+    };
+
+    res.json({
+      status: 'success',
+      message: 'Avatar uploaded successfully',
+      data: {
+        user: userResponse
+      }
+    });
+  } catch (error) {
+    console.error('Avatar upload error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to upload avatar'
+    });
+  }
+});
+
+// @route   DELETE /api/auth/avatar
+// @desc    Delete user avatar
+// @access  Private
+router.delete('/avatar', authenticateToken, async (req, res) => {
+  try {
+    const currentUser = await User.findById(req.user._id);
+    
+    // Delete avatar from Cloudinary if exists
+    if (currentUser.avatar && currentUser.avatar.public_id) {
+      await deleteImage(currentUser.avatar.public_id);
+    }
+
+    // Remove avatar from user
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      {
+        avatar: {
+          url: '',
+          public_id: ''
+        }
+      },
+      { new: true, runValidators: true }
+    );
+
+    const userResponse = {
+      id: user._id,
+      username: user.username,
+      email: user.email,
+      avatar: user.avatar.url || user.avatar, // Handle both new and old format
+      bio: user.bio,
+      role: user.role,
+      reputation: user.reputation,
+      badges: user.badges,
+      createdAt: user.createdAt
+    };
+
+    res.json({
+      status: 'success',
+      message: 'Avatar deleted successfully',
+      data: {
+        user: userResponse
+      }
+    });
+  } catch (error) {
+    console.error('Avatar delete error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to delete avatar'
     });
   }
 });
