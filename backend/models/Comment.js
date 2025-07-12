@@ -62,11 +62,6 @@ const commentSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
-// Virtual for vote count calculation
-commentSchema.virtual('voteCount').get(function() {
-  return this.votes.upvotes.length - this.votes.downvotes.length;
-});
-
 // Indexes for better query performance
 commentSchema.index({ question: 1 });
 commentSchema.index({ answer: 1 });
@@ -75,7 +70,7 @@ commentSchema.index({ createdAt: -1 });
 commentSchema.index({ parentComment: 1 });
 
 // Validation to ensure comment belongs to either question or answer
-commentSchema.pre('save', function(next) {
+commentSchema.pre('save', function (next) {
   if (!this.question && !this.answer) {
     return next(new Error('Comment must belong to either a question or an answer'));
   }
@@ -86,10 +81,10 @@ commentSchema.pre('save', function(next) {
 });
 
 // Method to add vote
-commentSchema.methods.addVote = function(userId, voteType) {
+commentSchema.methods.addVote = function (userId, voteType) {
   const upvoteIndex = this.votes.upvotes.indexOf(userId);
   const downvoteIndex = this.votes.downvotes.indexOf(userId);
-  
+
   if (voteType === 'upvote') {
     if (upvoteIndex === -1) {
       this.votes.upvotes.push(userId);
@@ -109,13 +104,13 @@ commentSchema.methods.addVote = function(userId, voteType) {
       this.votes.downvotes.splice(downvoteIndex, 1);
     }
   }
-  
+
   this.voteCount = this.votes.upvotes.length - this.votes.downvotes.length;
   return this.save();
 };
 
 // Method to add edit history
-commentSchema.methods.addEditHistory = function(editorId, reason) {
+commentSchema.methods.addEditHistory = function (editorId, reason) {
   this.editHistory.push({
     editor: editorId,
     reason: reason || 'Comment edited'
@@ -126,14 +121,14 @@ commentSchema.methods.addEditHistory = function(editorId, reason) {
 };
 
 // Static method to find comments by question
-commentSchema.statics.findByQuestion = function(questionId) {
+commentSchema.statics.findByQuestion = function (questionId) {
   return this.find({ question: questionId })
     .populate('author', 'username avatar')
     .sort({ createdAt: 1 });
 };
 
 // Static method to find comments by answer
-commentSchema.statics.findByAnswer = function(answerId) {
+commentSchema.statics.findByAnswer = function (answerId) {
   return this.find({ answer: answerId })
     .populate('author', 'username avatar')
     .sort({ createdAt: 1 });

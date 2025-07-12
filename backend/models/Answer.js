@@ -66,11 +66,6 @@ answerSchema.virtual('commentsCount', {
   count: true
 });
 
-// Virtual for vote count calculation
-answerSchema.virtual('voteCount').get(function() {
-  return this.votes.upvotes.length - this.votes.downvotes.length;
-});
-
 // Indexes for better query performance
 answerSchema.index({ question: 1 });
 answerSchema.index({ author: 1 });
@@ -79,10 +74,10 @@ answerSchema.index({ voteCount: -1 });
 answerSchema.index({ isAccepted: 1 });
 
 // Method to add vote
-answerSchema.methods.addVote = function(userId, voteType) {
+answerSchema.methods.addVote = function (userId, voteType) {
   const upvoteIndex = this.votes.upvotes.indexOf(userId);
   const downvoteIndex = this.votes.downvotes.indexOf(userId);
-  
+
   if (voteType === 'upvote') {
     if (upvoteIndex === -1) {
       this.votes.upvotes.push(userId);
@@ -102,25 +97,25 @@ answerSchema.methods.addVote = function(userId, voteType) {
       this.votes.downvotes.splice(downvoteIndex, 1);
     }
   }
-  
+
   this.voteCount = this.votes.upvotes.length - this.votes.downvotes.length;
   return this.save();
 };
 
 // Method to accept answer
-answerSchema.methods.accept = function() {
+answerSchema.methods.accept = function () {
   this.isAccepted = true;
   return this.save();
 };
 
 // Method to unaccept answer
-answerSchema.methods.unaccept = function() {
+answerSchema.methods.unaccept = function () {
   this.isAccepted = false;
   return this.save();
 };
 
 // Method to add edit history
-answerSchema.methods.addEditHistory = function(editorId, reason) {
+answerSchema.methods.addEditHistory = function (editorId, reason) {
   this.editHistory.push({
     editor: editorId,
     reason: reason || 'Answer edited'
@@ -131,7 +126,7 @@ answerSchema.methods.addEditHistory = function(editorId, reason) {
 };
 
 // Static method to find answers by question
-answerSchema.statics.findByQuestion = function(questionId) {
+answerSchema.statics.findByQuestion = function (questionId) {
   return this.find({ question: questionId })
     .populate('author', 'username avatar reputation')
     .populate('question', 'title')
@@ -139,7 +134,7 @@ answerSchema.statics.findByQuestion = function(questionId) {
 };
 
 // Static method to find accepted answers
-answerSchema.statics.findAccepted = function() {
+answerSchema.statics.findAccepted = function () {
   return this.find({ isAccepted: true })
     .populate('author', 'username avatar reputation')
     .populate('question', 'title');
