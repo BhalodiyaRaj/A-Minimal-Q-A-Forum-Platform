@@ -17,15 +17,48 @@ const MainLayout = ({ children }) => {
           Ask New question
         </button>
         <div className="flex items-center gap-2 border border-gray-600 rounded-xl px-2 py-1 bg-[#18181b]">
-          <button className="px-4 py-1 rounded-lg text-gray-200 font-medium hover:bg-blue-500/10 transition">Newest</button>
-          <button className="px-4 py-1 rounded-lg text-gray-200 font-medium hover:bg-blue-500/10 transition">Unanswered</button>
+          <button className="px-4 py-1 rounded-lg text-gray-200 font-medium hover:bg-blue-500/10 transition">
+            Newest
+          </button>
+          <button className="px-4 py-1 rounded-lg text-gray-200 font-medium hover:bg-blue-500/10 transition">
+            Unanswered
+          </button>
           <button className="flex items-center gap-1 px-3 py-1 rounded-lg text-gray-200 font-medium hover:bg-blue-500/10 transition border border-gray-700 ml-2">
-            more <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="inline-block ml-1" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+            more{" "}
+            <svg
+              width="18"
+              height="18"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="inline-block ml-1"
+              viewBox="0 0 24 24"
+            >
+              <path d="M6 9l6 6 6-6" />
+            </svg>
           </button>
         </div>
         <div className="flex items-center border border-gray-600 rounded-xl bg-[#18181b] px-2 py-1 w-72">
-          <input className="flex-1 bg-transparent outline-none text-gray-200 px-3 py-1 text-lg" placeholder="Search" />
-          <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          <input
+            className="flex-1 bg-transparent outline-none text-gray-200 px-3 py-1 text-lg"
+            placeholder="Search"
+          />
+          <svg
+            width="22"
+            height="22"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="text-gray-400"
+            viewBox="0 0 24 24"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <path d="M21 21l-4.35-4.35" />
+          </svg>
         </div>
       </div>
       {children}
@@ -33,4 +66,4 @@ const MainLayout = ({ children }) => {
   );
 };
 
-export default MainLayout; 
+export default MainLayout;
